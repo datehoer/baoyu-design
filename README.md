@@ -153,6 +153,14 @@ npx skills add JimLiu/baoyu-design --list
 
 It installs to `.claude/skills/` for Claude Code and `.agents/skills/` for Cursor/Codex-style agents (add `-g` for the `~/`‑level user install).
 
+### Install a reviewed local checkout into Codex
+
+Copy the entire `skills/baoyu-design/` directory to `${CODEX_HOME:-$HOME/.codex}/skills/baoyu-design`, retaining its `LICENSE` and vendored notices. Do not copy only `SKILL.md` or the repository's separate `.claude/skills/` release tooling. This installs the reviewed local version without a remote `npx` installer.
+
+If that destination exists, review the differences and confirm replacement first. Back up the old directory outside the skills discovery directory, then copy the new folder without `node_modules`, `dist`, or cache files. Avoid overlay copies that leave obsolete files. Start a new session and check `$baoyu-design`. Local copies do not auto-update with Git. See the [Chinese installation guide](README.zh-CN.md) for a copy command that refuses to overwrite an existing installation.
+
+Reading the skill and authoring HTML need no npm install. Design-system helpers require Node.js. PPTX and video export require separate builds plus Playwright Chromium; video also requires ffmpeg. Set up only the requested exporter using [Codex local export](skills/baoyu-design/references/codex.md#local-pptx-and-video-export). Image generation, Figma, Canva, and hosted Claude helpers depend on tools actually available in the runtime. Installing this Skill does not enable those services. Some prototypes use CDNs/online fonts; offline delivery requires inlining resources.
+
 ### Update
 
 If you installed `baoyu-design` with the `skills` CLI, update it from the terminal:

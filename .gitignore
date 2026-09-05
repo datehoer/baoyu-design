@@ -147,3 +147,6 @@ vite.config.ts.timestamp-*
 .claude/settings.local.json
 
 designs/
+
+# Local review snapshots and reports; never package these as skills.
+work/install-audit/

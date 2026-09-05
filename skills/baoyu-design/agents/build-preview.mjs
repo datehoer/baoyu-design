@@ -57,8 +57,27 @@ function slug(s) {
       .replace(/^-+|-+$/g, "") || "x"
   );
 }
-async function readMaybe(p) {
+function isWithin(root, candidate) {
+  const rel = path.relative(root, candidate);
+  return rel === "" || (rel !== ".." && !rel.startsWith(".." + path.sep) && !path.isAbsolute(rel));
+}
+
+async function projectFile(root, candidate) {
+  if (!isWithin(root, candidate)) return null;
   try {
+    const [realRoot, realFile] = await Promise.all([fs.realpath(root), fs.realpath(candidate)]);
+    return isWithin(realRoot, realFile) ? realFile : null;
+  } catch {
+    return null;
+  }
+}
+
+async function readMaybe(p, root) {
+  try {
+    if (root) {
+      p = await projectFile(root, p);
+      if (!p) return null;
+    }
     return await fs.readFile(p, "utf8");
   } catch {
     return null;
@@ -288,7 +307,7 @@ async function scanForCards(root) {
         continue;
       }
       if (!/\.html?$/i.test(e.name)) continue;
-      const text = await readMaybe(abs);
+      const text = await readMaybe(abs, root);
       if (!text) continue;
       const d = parseDirective(text);
       if (!d) continue;
@@ -313,7 +332,7 @@ function renderInline(text) {
   const codes = [];
   s = s.replace(/`([^`]+)`/g, (m, c) => {
     codes.push(c);
-    return " " + (codes.length - 1) + " ";
+    return "\x00" + (codes.length - 1) + "\x00";
   });
   s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, '<img alt="$1" src="$2">');
   s = s.replace(
@@ -324,7 +343,7 @@ function renderInline(text) {
   s = s.replace(/__([^_]+)__/g, "<strong>$1</strong>");
   s = s.replace(/(^|[\s(>])\*([^*\n]+)\*(?=$|[\s).,!?:;<])/g, "$1<em>$2</em>");
   s = s.replace(/~~([^~]+)~~/g, "<del>$1</del>");
-  s = s.replace(/ (\d+) /g, (m, i) => "<code>" + codes[+i] + "</code>");
+  s = s.replace(/\x00(\d+)\x00/g, (m, i) => "<code>" + codes[+i] + "</code>");
   return s;
 }
 
@@ -578,9 +597,11 @@ function makeAssetInliner(ctx) {
     if (cache.has(absPath)) return cache.get(absPath);
     let result = null;
     try {
-      const st = await fs.stat(absPath);
+      const safePath = await projectFile(ctx.root, absPath);
+      if (!safePath) return null;
+      const st = await fs.stat(safePath);
       if (st.size <= MAX_INLINE_ASSET) {
-        const buf = await fs.readFile(absPath);
+        const buf = await fs.readFile(safePath);
         const mime = MIME[path.extname(absPath).toLowerCase()] || "application/octet-stream";
         result = "data:" + mime + ";base64," + buf.toString("base64");
         ctx.inlinedBytes += buf.length;
@@ -602,7 +623,7 @@ function resolveRef(ref, baseDir, root) {
     clean = decodeURIComponent(clean);
   } catch {}
   const abs = clean.startsWith("/") ? path.join(root, clean.slice(1)) : path.resolve(baseDir, clean);
-  if (!abs.startsWith(root)) return null;
+  if (!isWithin(root, abs)) return null;
   return abs;
 }
 
@@ -647,7 +668,7 @@ async function processCss(cssText, baseDir, ctx, stack = new Set()) {
     } else {
       const abs = resolveRef(imp.ref, baseDir, ctx.root);
       if (abs && !stack.has(abs)) {
-        const text = await readMaybe(abs);
+        const text = await readMaybe(abs, ctx.root);
         if (text != null) {
           stack.add(abs);
           replacement = await processCss(text, path.dirname(abs), ctx, stack);
@@ -768,7 +789,7 @@ async function rewriteMarkupAssets(html, baseDir, ctx, { rewriteEvents = true } 
 }
 
 async function parseCardHtml(absPath, ctx) {
-  const raw = await readMaybe(absPath);
+  const raw = await readMaybe(absPath, ctx.root);
   if (raw == null) return null;
   const dir = path.dirname(absPath);
   const text = raw.replace(DS_CARD_RE, "");
@@ -799,7 +820,7 @@ async function parseCardHtml(absPath, ctx) {
         continue;
       }
       const abs = resolveRef(href, dir, ctx.root);
-      const css = abs ? await readMaybe(abs) : null;
+      const css = abs ? await readMaybe(abs, ctx.root) : null;
       if (css == null) {
         warn("stylesheet not found: " + href + " (" + path.relative(ctx.root, absPath) + ")");
         continue;
@@ -836,7 +857,7 @@ async function parseCardHtml(absPath, ctx) {
         ctx.bundlePath = abs;
         continue;
       }
-      const code = await readMaybe(abs);
+      const code = await readMaybe(abs, ctx.root);
       if (code == null) {
         warn("script not found: " + src);
         continue;
@@ -1596,7 +1617,7 @@ async function main() {
 
   // ---- manifest / cards
   let manifest = null;
-  const manifestText = await readMaybe(path.join(root, "_ds_manifest.json"));
+  const manifestText = await readMaybe(path.join(root, "_ds_manifest.json"), root);
   if (manifestText) {
     try {
       manifest = JSON.parse(manifestText);
@@ -1759,7 +1780,7 @@ async function main() {
   // ---- readme
   let readmeHtml = null;
   for (const cand of ["readme.md", "README.md", "Readme.md"]) {
-    const text = await readMaybe(path.join(root, cand));
+    const text = await readMaybe(path.join(root, cand), root);
     if (text != null) {
       readmeHtml = renderMarkdown(text);
       break;
@@ -1813,7 +1834,7 @@ async function main() {
     }
   }
   if (usesBundle && ctx.bundlePath) {
-    const bundle = await readMaybe(ctx.bundlePath);
+    const bundle = await readMaybe(ctx.bundlePath, root);
     if (bundle != null) {
       headScripts.push("<script>" + safeInlineScript(bundle) + "</script>");
       info("inlined " + path.relative(root, ctx.bundlePath));

@@ -24,7 +24,7 @@ Resolve the backend once, in this order:
 1. **Current-request override** — if the user names a backend in this message, use it.
 2. **Saved preference** — if your harness config sets a preferred image backend that is available right now, use it. (Absent = `auto`; this skill ships no preference file of its own, so this branch applies only when the host provides one.)
 3. **Auto-select** — inspect your available-skills / tool inventory, in order:
-   - **Codex `imagegen`** — if a skill named `imagegen` is listed, you are in Codex; it is the official raster backend and outranks any non-native skill. Invoke via the `Skill` tool.
+   - **Codex `imagegen`** — if a skill named `imagegen` is listed, read its `SKILL.md` at the location supplied by the runtime and follow its backend instructions. Do not assume a `Skill` invocation tool exists.
    - **Cursor `GenerateImage`** — if a native `GenerateImage` tool exists, you are in Cursor; it outranks non-native skills. Two caveats: no aspect-ratio parameter (state the target dimensions / ratio in the prompt text) and no output directory (move the file to your output path afterward); reference images go in `reference_image_paths`.
    - **Other runtime-native tool** (e.g. Hermes `image_generate`) — use it the same way.
    - Otherwise, the installed **`baoyu-image-gen`** skill (general raster generation — illustration, scene, character, mascot, hero/section art) — use it.
@@ -34,7 +34,7 @@ Concrete tool names (`imagegen`, `GenerateImage`, `image_generate`, `baoyu-image
 
 ## Invoke the chosen backend
 
-- **Codex `imagegen`** — `Skill(skill: "imagegen", args: { prompt: <prompt-file content>, output: <imgs/NN-….png>, aspect_ratio: <ratio> })`.
+- **Codex `imagegen`** — after reading the installed skill, use the image-generation tool and argument schema actually exposed by the runtime. Put the desired dimensions/aspect ratio in the prompt when no dedicated parameter exists. Copy a returned local asset into the project when available; do not invent an output path or unsupported tool parameters.
 - **Cursor `GenerateImage`** — native tool: put dimensions / aspect ratio in `description`, reference images in `reference_image_paths`; after it returns, move the file from the tool-managed location into the project. The chat renders it automatically — don't re-embed.
 - **`baoyu-image-gen`** — CLI: `bun skills/baoyu-image-gen/scripts/main.ts --promptfiles <prompts/NN-….md> --image <imgs/NN-….png> --ar <ratio>` (add `--provider codex-cli` to route through codex-imagegen). General raster generation — illustration, scene, character, mascot, hero/section art.
 

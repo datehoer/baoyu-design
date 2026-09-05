@@ -17,7 +17,7 @@ Export an HTML slide deck to a `.pptx` with native PowerPoint objects (editable 
 3. **Call `gen_pptx`** with the inputs below.
 4. **Read the validation flags** in the result and decide if you need to retry.
 
-> **Claude Code:** there is no `gen_pptx` tool — run it as a local CLI. Serve the deck over HTTP, write the inputs below to a JSON file, then `node <skill>/agents/gen-pptx/dist/cli.mjs --url <servedDeckUrl> --config <jsonPath> --out designs/<project>`, and read `flags` from the printed JSON. Full invocation + one-time setup: [`../references/claude.md`](../references/claude.md) → "Exporting to PPTX".
+> **Local agents (Codex, Cursor, Claude Code):** when no hosted export tool is available, there is no `gen_pptx` tool — run it as a local CLI. Serve the deck over HTTP, write the inputs below to a JSON file, then `node <skill>/agents/gen-pptx/dist/cli.mjs --url <servedDeckUrl> --config <jsonPath> --out designs/<project>`, and read `flags` from the printed JSON. For Codex setup, see [`../references/codex.md`](../references/codex.md#local-pptx-and-video-export). Claude Code invocation + one-time setup: [`../references/claude.md`](../references/claude.md) → "Exporting to PPTX".
 
 ## gen_pptx inputs
 

@@ -15,7 +15,7 @@ Render a finished timeline animation to a real video file (`.mp4`, `.webm`, or `
 3. **Write the config JSON** (below) and **call `gen_video`**.
 4. **Read the validation flags** in the result and decide if you need to retry.
 
-> **Claude Code:** there is no `gen_video` tool — run it as a local CLI. Serve the animation over HTTP, write the inputs below to a JSON file, then `node <skill>/agents/gen-video/dist/cli.mjs --url <servedUrl> --config <jsonPath> --out designs/<project>`, and read `flags` from the printed JSON. Full invocation + one-time setup (incl. ffmpeg): [`../references/claude.md`](../references/claude.md) → "Exporting to video".
+> **Local agents (Codex, Cursor, Claude Code):** when no hosted export tool is available, there is no `gen_video` tool — run it as a local CLI. Serve the animation over HTTP, write the inputs below to a JSON file, then `node <skill>/agents/gen-video/dist/cli.mjs --url <servedUrl> --config <jsonPath> --out designs/<project>`, and read `flags` from the printed JSON. For Codex setup, see [`../references/codex.md`](../references/codex.md#local-pptx-and-video-export). Claude Code invocation + one-time setup (incl. ffmpeg): [`../references/claude.md`](../references/claude.md) → "Exporting to video".
 
 ## gen_video inputs
 

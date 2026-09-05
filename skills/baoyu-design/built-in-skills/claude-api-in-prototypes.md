@@ -2,7 +2,9 @@
 name: "claude-api-in-prototypes"
 description: "Claude API in prototypes\nCall Claude from your HTML artifacts via window.claude.complete"
 ---
-Your HTML artifacts can call Claude via a built-in helper. No SDK or API key needed.
+The following helper is supplied by the hosted Claude Design environment only. Ordinary localhost HTML in Codex, Cursor, or Claude Code does not have `window.claude`. Check the target runtime before using this example. For local prototypes, use an explicitly labeled demo response or an existing user-authorized backend; never embed an API key in browser HTML. A real API integration is separate work with its own backend requirements.
+
+In the hosted environment, HTML artifacts can call Claude via the built-in helper without adding an SDK or API key to the page.
 
 ```html
 <script>

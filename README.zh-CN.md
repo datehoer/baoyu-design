@@ -106,7 +106,7 @@ Cursor、Codex、Claude 和 Claude Design 使用的是同一个 Reader Mac App P
 
 ## 工作原理
 
-整个技能就是纯 Markdown 加几个 JSX/JS 脚手架 —— 无需构建、无需运行时。
+Skill 入口是 Markdown，配有 JSX/JS 组件和 Node.js 辅助脚本。基础 HTML 设计无需构建；PPTX／视频导出器需要单独安装依赖并构建。
 
 ```
 skills/baoyu-design/
@@ -153,6 +153,32 @@ npx skills add JimLiu/baoyu-design --list
 ```
 
 它会把技能装到 Claude Code 的 `.claude/skills/`，以及 Cursor/Codex 风格 Agent 的 `.agents/skills/`（加上 `-g` 则装到 `~/` 级别的用户目录）。
+
+### 从已审查的本地仓库安装到 Codex
+
+本仓库是 Skill 源码包，不是 MCP 服务。安装单元是整个 `skills/baoyu-design/` 目录，不能只复制 `SKILL.md`，也不要复制仓库的 `.claude/skills/` 发布工具。Skill 目录已包含本项目的 MIT 许可；保留其余 vendor 许可和版权声明。
+
+在仓库根目录执行以下命令，直接复制当前本地版本，无需运行远程 `npx` 安装器：
+
+```bash
+python3 - "${CODEX_HOME:-$HOME/.codex}/skills/baoyu-design" <<'PYINSTALL'
+import shutil
+import sys
+from pathlib import Path
+
+source = Path("skills/baoyu-design")
+target = Path(sys.argv[1])
+if target.exists() or target.is_symlink():
+    raise SystemExit(f"已存在安装，请先审查差异并备份后再更新：{target}")
+target.parent.mkdir(parents=True, exist_ok=True)
+shutil.copytree(source, target, ignore=shutil.ignore_patterns("node_modules", "dist", "__pycache__", ".DS_Store"))
+print(f"已安装：{target}")
+PYINSTALL
+```
+
+已有同名 Skill 时，先比较差异，经确认后把旧目录备份到 skills 目录之外，再复制新版本；不要叠加复制，以免旧文件残留。开启新会话并检查 `$baoyu-design` 是否可用。本地安装不会自动跟随 Git 仓库更新。
+
+**安装与运行依赖不同：** 读取 Skill、编写 HTML 不需要 npm 安装；设计系统辅助脚本需要 Node.js，预览需要本地 HTTP 服务和可用浏览器。PPTX／视频导出需要分别构建 `agents/gen-pptx/`、`agents/gen-video/`，以及 Playwright Chromium；视频还需要 ffmpeg。只在需要对应导出时准备依赖，见 [Codex 本地导出说明](skills/baoyu-design/references/codex.md#local-pptx-and-video-export)。图像生成、Figma、Canva 和 Claude 网页助手依赖当前环境实际提供的工具，复制 Skill 不会启用这些服务。部分原型使用 CDN 或在线字体，离线交付需要内联资源。
 
 ### 更新
 

@@ -72,7 +72,32 @@ function findGlobalCssEntry(root, files) {
   return null;
 }
 
-// Fallback when the filename heuristic misses: trust the compiled manifest's
+// CSS paths use forward slashes on every host. Reject absolute paths, URL
+// schemes (including drive prefixes), and ambiguous Windows separators before
+// joining an import to its parent directory.
+function isRelativeCssPath(value) {
+  return typeof value === 'string' && value.length > 0 &&
+    !value.includes('\\') && !path.posix.isAbsolute(value) &&
+    !/^[a-z][a-z0-9+.-]*:/i.test(value);
+}
+
+function safeCssPath(root, value) {
+  if (!isRelativeCssPath(value)) return null;
+  const normalized = path.posix.normalize(value);
+  if (normalized === '..' || normalized.startsWith('../')) return null;
+  try {
+    // Lexical containment alone does not stop a file or directory symlink
+    // from resolving outside the design system. Check real paths before read.
+    const realRoot = fs.realpathSync(root);
+    const realFile = fs.realpathSync(path.join(root, normalized));
+    const relative = path.relative(realRoot, realFile);
+    if (relative === '..' || relative.startsWith(`..${path.sep}`) ||
+        path.isAbsolute(relative) || !fs.statSync(realFile).isFile()) return null;
+    return normalized;
+  } catch { return null; }
+}
+
+// Fallback when the filename heuristic misses: use the compiled manifest's
 // recorded closure. Its LAST entry is the importer/entry file (post-order), so
 // for a single-file closure it's the file itself. Returned only if it still
 // exists on disk; otherwise null (caller falls through to the warning). This is
@@ -84,7 +109,7 @@ function manifestCssEntry(root) {
     const paths = Array.isArray(m && m.globalCssPaths) ? m.globalCssPaths : [];
     if (!paths.length) return null;
     const entry = paths[paths.length - 1];
-    if (entry && fs.existsSync(path.join(root, entry))) return entry;
+    return safeCssPath(root, entry);
   } catch { /* no/invalid manifest */ }
   return null;
 }
@@ -95,17 +120,17 @@ const IMPORT_RE = /@import\s+(?:url\(\s*)?["']([^"')]+)["']\s*\)?\s*;/g;
 function resolveCssClosure(root, entryRel) {
   const order = [];
   const seen = new Set();
-  const visit = (relPath) => {
-    if (seen.has(relPath)) return;
+  const visit = (candidate) => {
+    const relPath = safeCssPath(root, candidate);
+    if (relPath === null || seen.has(relPath)) return;
     seen.add(relPath);
     const abs = path.join(root, relPath);
     let css;
     try { css = read(abs); } catch { return; }
-    let m;
-    IMPORT_RE.lastIndex = 0;
-    while ((m = IMPORT_RE.exec(css))) {
-      let spec = m[1].trim();
-      if (/^https?:/i.test(spec)) continue; // skip remote imports
+    // Each recursive visit needs its own iterator, not a shared regex cursor.
+    for (const m of css.matchAll(IMPORT_RE)) {
+      const spec = m[1].trim();
+      if (!isRelativeCssPath(spec)) continue;
       const childRel = path.posix.normalize(
         path.posix.join(path.posix.dirname(relPath), spec),
       );
